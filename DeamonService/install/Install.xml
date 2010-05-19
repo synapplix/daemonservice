@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<xml>
+    <ServiceName value="DeamonService" />
+    <DisplayName value="Deamon service" />
+    <Description value="This is a simple linux like service wrapper which executes start and stop sctipts." />
+</xml>
