@@ -1,1 +1,1 @@
-echo stop > stop.txt
+echo %* >> C:\stop.txt
