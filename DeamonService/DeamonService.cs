@@ -23,10 +23,27 @@ namespace DeamonService
 
         protected override void OnStart(string[] args)
         {
+            SetWorkingDirectory();
             if (!File.Exists(getStringSetting("StartupScript")))
                 throw new Exception("No file: " + getStringSetting("StartupScript"));
 
             new Thread(ExecuteCommand).Start();
+        }
+
+        private void SetWorkingDirectory()
+        {
+            String workingDirectory = getStringSetting("WorkingDirectory");
+            if (string.IsNullOrEmpty(workingDirectory))
+            {
+                return;
+            }
+
+            if (!Directory.Exists(workingDirectory))
+            {
+                Directory.CreateDirectory(workingDirectory);
+            }
+
+            Directory.SetCurrentDirectory(workingDirectory);
         }
 
         private void ExecuteCommand()
@@ -52,8 +69,10 @@ namespace DeamonService
                     return;
                 }
 
-                if (null != runningProcess && !runningProcess.HasExited)
-                    runningProcess.Kill();
+                if (null != runningProcess && !runningProcess.HasExited) 
+                {
+                    ProcessUtility.KillTree(runningProcess.Id);
+                }
             }
             finally {
                 runningProcess = null;

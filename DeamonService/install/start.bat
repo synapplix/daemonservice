@@ -1,1 +1,1 @@
-echo %* >> C:\start.txt
+echo %* >> start.txt
