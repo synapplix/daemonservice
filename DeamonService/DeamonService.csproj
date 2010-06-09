@@ -112,6 +112,9 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="README.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="install\InstallUtil.exe">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
