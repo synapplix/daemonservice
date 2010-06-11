@@ -1,4 +1,10 @@
 ﻿Release notes:
+v1.4
+ - Release date 2010-06-11
+ - Doesn't create working dir anyomre
+ - Executes shutdown script in the working dir
+ - Waits for configurable number of seconds after executing shutdown script
+
 v1.3
  - Release date 2010-06-09
  - If error happens on startup the standard output and standard error 
