@@ -1,4 +1,8 @@
 ﻿Release notes:
+v1.5
+ - Release date 2010-06-11
+ - Single config for install and service.
+
 v1.4
  - Release date 2010-06-11
  - Doesn't create working dir anyomre

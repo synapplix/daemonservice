@@ -6,6 +6,8 @@ using System.Configuration.Install;
 using System.Linq;
 using System.Configuration;
 using VAkos;
+using System.Xml;
+using DeamonService;
 
 
 namespace Org.Infobip.DeamonService
@@ -24,10 +26,14 @@ namespace Org.Infobip.DeamonService
             // 
             // DeamonServiceInstaller
             // 
-            Xmlconfig xmlConfig = new Xmlconfig("Install.xml", false);
-            this.DeamonServiceInstaller.DisplayName = xmlConfig.Settings["DisplayName"].Value;
-            this.DeamonServiceInstaller.ServiceName = xmlConfig.Settings["ServiceName"].Value;
-            this.DeamonServiceInstaller.Description = xmlConfig.Settings["Description"].Value;
+            XmlDocument xmldoc = new XmlDocument();
+            xmldoc.Load("DeamonService.exe.config");
+            ConfigSetting serrings = new ConfigSetting(xmldoc.DocumentElement);
+            ConfigSetting installerSettings = serrings["Installer"];
+
+            this.DeamonServiceInstaller.DisplayName = installerSettings["DisplayName"].Value;
+            this.DeamonServiceInstaller.ServiceName = installerSettings["ServiceName"].Value;
+            this.DeamonServiceInstaller.Description = installerSettings["Description"].Value;
 
             this.DeamonServiceInstaller.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
@@ -36,12 +42,6 @@ namespace Org.Infobip.DeamonService
             this.DeamonServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.LocalSystem;
             this.DeamonServiceProcessInstaller.Password = null;
             this.DeamonServiceProcessInstaller.Username = null;
-            /*
-            this.Installers.AddRange(new System.Configuration.Install.Installer[] {
-																					  this.DeamonServiceInstaller,
-																					  this.DeamonServiceProcessInstaller});
-             */
-
         }
     }
 }
