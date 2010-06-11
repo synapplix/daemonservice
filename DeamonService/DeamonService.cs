@@ -132,7 +132,11 @@ namespace DeamonService
                     process.Start();
 
                     process.WaitForExit();
-                    Thread.Sleep(3000);
+
+                    int afterExitDelay = AfterExitDelay;
+                    if(afterExitDelay > 0)
+                        Thread.Sleep(AfterExitDelay);
+
                     return;
                 }
 
@@ -151,6 +155,19 @@ namespace DeamonService
                 runningProcess = null;
                 runningProcessOutput = null;
                 runningProcessError = null;
+            }
+        }
+
+        private int AfterExitDelay
+        {
+            get
+            {
+                String afterExitDelayString = getStringSetting("ShutdownScript.AfterExitDelay");
+                int afterExitDelay;
+                if (!int.TryParse(afterExitDelayString, out afterExitDelay))
+                    afterExitDelay = 3;
+
+                return afterExitDelay < 0 ? 0 : afterExitDelay;
             }
         }
 
