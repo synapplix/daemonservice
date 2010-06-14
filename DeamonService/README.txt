@@ -1,4 +1,9 @@
 ﻿Release notes:
+v1.6
+ - Release date 2010-06-14
+ - Single config file bug fixes.
+ - Scripts full path is required.
+
 v1.5
  - Release date 2010-06-11
  - Single config for install and service.

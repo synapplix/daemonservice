@@ -28,8 +28,12 @@ namespace DeamonService
             try
             {
                 string workingDirectory = WorkingDirectory;
-                if (!File.Exists(getStringSetting("StartupScript")))
-                    throw new Exception("No file: " + getStringSetting("StartupScript"));
+                String startupScript = getStringSetting("StartupScript");
+                if (string.IsNullOrEmpty(startupScript))
+                    throw new Exception("No StartupScript defined!");
+
+                if (!File.Exists(startupScript))
+                    throw new Exception(startupScript + " does not exist!");
 
                 new Thread(ExecuteStartupScript).Start();
             }
@@ -75,7 +79,12 @@ namespace DeamonService
                 runningProcess.StartInfo.FileName = startupScript;
                 runningProcess.StartInfo.Arguments = startupScriptArguments;
                 if (null != workingDirectory)
+                {
                     runningProcess.StartInfo.WorkingDirectory = workingDirectory;
+                    this.EventLog.WriteEntry("Executing "+startupScript +" in working directory "+workingDirectory, EventLogEntryType.Information);
+                }else
+                    this.EventLog.WriteEntry("Executing " + startupScript , EventLogEntryType.Information);
+
                 
                 runningProcess.Start(); 
 
@@ -115,30 +124,44 @@ namespace DeamonService
             {
                 string workingDirectory = WorkingDirectory;
                 String shutdownScript = getStringSetting("ShutdownScript");
+
                 if (!string.IsNullOrEmpty(shutdownScript))
                 {
                     String shutdownScriptArguments = getStringSetting("ShutdownScript.Arguments");
-                    
-                    Process process = new Process();
-                    // Redirect the output stream of the child process.
-                    process.StartInfo.UseShellExecute = false;
-                    process.StartInfo.RedirectStandardOutput = true;
-                    process.StartInfo.RedirectStandardError = true;
-                    process.StartInfo.FileName = shutdownScript;
-                    process.StartInfo.Arguments = shutdownScriptArguments;
-                    if(null!=workingDirectory)
-                        process.StartInfo.WorkingDirectory = workingDirectory;
+                    try
+                    {
+                        if (!File.Exists(shutdownScript))
+                            throw new Exception(shutdownScript + " does not exist!");
 
-                    process.Start();
+                        Process process = new Process();
+                        // Redirect the output stream of the child process.
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.RedirectStandardOutput = true;
+                        process.StartInfo.RedirectStandardError = true;
+                        process.StartInfo.FileName = shutdownScript;
+                        process.StartInfo.Arguments = shutdownScriptArguments;
+                        if (null != workingDirectory)
+                        {
+                            process.StartInfo.WorkingDirectory = workingDirectory;
+                            this.EventLog.WriteEntry("Executing " + shutdownScript + " in working directory " + workingDirectory, EventLogEntryType.Information);
+                        }
+                        else
+                            this.EventLog.WriteEntry("Executing " + shutdownScript, EventLogEntryType.Information);
 
-                    process.WaitForExit();
+                        process.Start();
 
-                    int afterExitDelay = AfterExitDelay;
-                    if(afterExitDelay > 0)
-                        Thread.Sleep(AfterExitDelay);
+                        process.WaitForExit();
 
-                    return;
-                }
+                        int afterExitDelay = AfterExitDelay;
+                        if (afterExitDelay > 0)
+                            Thread.Sleep(AfterExitDelay);
+                    }
+                    catch (Exception e) {
+                        this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);
+                    }
+                }else
+                    this.EventLog.WriteEntry("No shutdown script defined! Killing process!", EventLogEntryType.Information);
+
 
                 if (null != runningProcess && !runningProcess.HasExited) 
                 {
