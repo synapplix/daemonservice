@@ -23,9 +23,33 @@ namespace DeamonService
             InitializeComponent();
         }
 
+        public void Run(string[] args)
+        {
+            OnStart(args);
+        }
+
+        public void StopService()
+        {
+            OnStop();
+        }
+
         protected override void OnStart(string[] args)
         {
             try
+            {
+                String startupScript = StartupScript;
+                new Thread(ExecuteStartupScript).Start();
+            }
+            catch (Exception e)
+            {
+                this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);
+                throw (e);
+            }
+        }
+
+        private string StartupScript
+        {
+            get
             {
                 string workingDirectory = WorkingDirectory;
                 String startupScript = getStringSetting("StartupScript");
@@ -33,14 +57,15 @@ namespace DeamonService
                     throw new Exception("No StartupScript defined!");
 
                 if (!File.Exists(startupScript))
-                    throw new Exception(startupScript + " does not exist!");
+                {
+                    if (!File.Exists(workingDirectory + "/" + startupScript))
+                    {
+                        throw new Exception(startupScript + " does not exist!");
+                    }
+                    startupScript = workingDirectory + "/" + startupScript;
+                }
 
-                new Thread(ExecuteStartupScript).Start();
-            }
-            catch (Exception e)
-            {
-                this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);
-                throw (e);
+                return startupScript;
             }
         }
 
@@ -68,10 +93,10 @@ namespace DeamonService
             try
             {
                 string workingDirectory = WorkingDirectory;
-                String startupScript = getStringSetting("StartupScript");
+                String startupScript = StartupScript;
                 String startupScriptArguments = getStringSetting("StartupScript.Arguments");
                 this.EventLog.WriteEntry("Starting process: " + startupScript + " " + startupScriptArguments, EventLogEntryType.Information);
-                Process runningProcess = new Process();
+                runningProcess = new Process();
                 // Redirect the output stream of the child process.
                 runningProcess.StartInfo.UseShellExecute = false;
                 runningProcess.StartInfo.RedirectStandardOutput = true;
@@ -86,13 +111,15 @@ namespace DeamonService
                     this.EventLog.WriteEntry("Executing " + startupScript , EventLogEntryType.Information);
 
                 
-                runningProcess.Start(); 
+                runningProcess.Start();
 
                 runningProcessOutput = runningProcess.StandardOutput.ReadToEnd();
-                runningProcessError = runningProcess.StandardError.ReadToEnd();
-                
-                runningProcess.WaitForExit();
-                if (runningProcess.ExitCode != 0)
+                if (null != runningProcess)
+                    runningProcessError = runningProcess.StandardError.ReadToEnd();
+
+                if (null != runningProcess)
+                    runningProcess.WaitForExit();
+                if (null != runningProcess && runningProcess.ExitCode != 0)
                 {
                     throw new Exception("Error while executing: " + startupScript + "\r\nProcess exited with exit code: " + runningProcess.ExitCode);
                 }
@@ -131,7 +158,13 @@ namespace DeamonService
                     try
                     {
                         if (!File.Exists(shutdownScript))
-                            throw new Exception(shutdownScript + " does not exist!");
+                        {
+                            if (!File.Exists(workingDirectory + "/" + shutdownScript))
+                            {
+                                throw new Exception(shutdownScript + " does not exist!");
+                            }
+                            shutdownScript = workingDirectory + "/" + shutdownScript;
+                        }
 
                         Process process = new Process();
                         // Redirect the output stream of the child process.
@@ -153,8 +186,14 @@ namespace DeamonService
                         process.WaitForExit();
 
                         int afterExitDelay = AfterExitDelay;
-                        if (afterExitDelay > 0)
-                            Thread.Sleep(AfterExitDelay);
+                        if (afterExitDelay > 0) {
+                            int delay = AfterExitDelay * 1000;
+                            while (delay > 0 &&  null != runningProcess && !runningProcess.HasExited)
+                            {
+                                delay -= 10;
+                                Thread.Sleep(10);
+                            }
+                        }
                     }
                     catch (Exception e) {
                         this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);

@@ -1,4 +1,19 @@
 ﻿Release notes:
+v1.9
+ - Release date 2010-10-19
+ - Process shutdown timeout bug fix - no wait if process exited
+ 
+v1.8
+ - Release date 2010-07-22
+ - Process kill bug fix
+ - Process shutdown timeout bug fix
+ - Realtive script path support
+ - Added "debug console" with argument -c
+
+v1.7
+ - Release date 2010-06-14
+ - Self (un)installer implemented.
+ 
 v1.6
  - Release date 2010-06-14
  - Single config file bug fixes.
