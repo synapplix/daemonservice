@@ -1,4 +1,9 @@
 ﻿Release notes:
+v2.0
+ - Release date 2011-02-10
+ - Script output cousing memeory leak fix
+ - Logging is introduced
+
 v1.9
  - Release date 2010-10-19
  - Process shutdown timeout bug fix - no wait if process exited

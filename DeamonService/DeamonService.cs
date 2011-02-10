@@ -15,8 +15,10 @@ namespace DeamonService
     public partial class DeamonService : ServiceBase
     {
         private System.Diagnostics.Process runningProcess;
-        private string runningProcessOutput;
-        private string runningProcessError;
+        private StreamPipe outPipe;
+        private StreamPipe errPipe;
+        private StreamWriter outStream;
+        private StreamWriter errStream;
 
         public DeamonService()
         {
@@ -37,14 +39,24 @@ namespace DeamonService
         {
             try
             {
+                PerpareLogFiles();
+
+                Log(EventLogEntryType.Information, "Loading configuration");
                 String startupScript = StartupScript;
+
                 new Thread(ExecuteStartupScript).Start();
             }
             catch (Exception e)
             {
-                this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);
+                Log(EventLogEntryType.Information, e.Message);
                 throw (e);
             }
+        }
+
+        private void PerpareLogFiles()
+        {
+            outStream = new StreamWriter(OutLogFile, true, Encoding.UTF8);
+            errStream = new StreamWriter(ErrorLogFile, true, Encoding.UTF8);
         }
 
         private string StartupScript
@@ -52,7 +64,7 @@ namespace DeamonService
             get
             {
                 string workingDirectory = WorkingDirectory;
-                String startupScript = getStringSetting("StartupScript");
+                String startupScript = GetStringSetting("StartupScript");
                 if (string.IsNullOrEmpty(startupScript))
                     throw new Exception("No StartupScript defined!");
 
@@ -72,7 +84,7 @@ namespace DeamonService
         private string WorkingDirectory
         {
             get{
-                string workingDirectory = getStringSetting("WorkingDirectory");
+                string workingDirectory = GetStringSetting("WorkingDirectory");
                 if (string.IsNullOrEmpty(workingDirectory))
                 {
                     return null;
@@ -84,8 +96,19 @@ namespace DeamonService
                 }
 
                 return workingDirectory;
-                //Directory.SetCurrentDirectory(workingDirectory);
             }
+        }
+
+        private void Log(EventLogEntryType e, string s){
+            outStream.WriteLine(DateTime.Now + " - " + e + " - " + s);
+            outStream.Flush();
+            this.EventLog.WriteEntry(s, e);
+        }
+
+        private void PipeOutput(Process process)
+        {
+            outPipe = new StreamPipe(process.StandardOutput.BaseStream, outStream.BaseStream);
+            errPipe = new StreamPipe(process.StandardError.BaseStream, errStream.BaseStream);
         }
 
         private void ExecuteStartupScript()
@@ -94,8 +117,10 @@ namespace DeamonService
             {
                 string workingDirectory = WorkingDirectory;
                 String startupScript = StartupScript;
-                String startupScriptArguments = getStringSetting("StartupScript.Arguments");
-                this.EventLog.WriteEntry("Starting process: " + startupScript + " " + startupScriptArguments, EventLogEntryType.Information);
+                String startupScriptArguments = GetStringSetting("StartupScript.Arguments");
+
+                Log(EventLogEntryType.Information, "Starting process: " + startupScript + " " + startupScriptArguments);
+
                 runningProcess = new Process();
                 // Redirect the output stream of the child process.
                 runningProcess.StartInfo.UseShellExecute = false;
@@ -103,19 +128,18 @@ namespace DeamonService
                 runningProcess.StartInfo.RedirectStandardError = true;
                 runningProcess.StartInfo.FileName = startupScript;
                 runningProcess.StartInfo.Arguments = startupScriptArguments;
+
                 if (null != workingDirectory)
                 {
                     runningProcess.StartInfo.WorkingDirectory = workingDirectory;
-                    this.EventLog.WriteEntry("Executing "+startupScript +" in working directory "+workingDirectory, EventLogEntryType.Information);
+                    Log(EventLogEntryType.Information, "Executing " + startupScript + " in working directory " + workingDirectory);
                 }else
-                    this.EventLog.WriteEntry("Executing " + startupScript , EventLogEntryType.Information);
+                    Log(EventLogEntryType.Information, "Executing " + startupScript);
 
                 
                 runningProcess.Start();
 
-                runningProcessOutput = runningProcess.StandardOutput.ReadToEnd();
-                if (null != runningProcess)
-                    runningProcessError = runningProcess.StandardError.ReadToEnd();
+                PipeOutput(runningProcess);
 
                 if (null != runningProcess)
                     runningProcess.WaitForExit();
@@ -125,24 +149,10 @@ namespace DeamonService
                 }
             }
             catch (Exception e) {
-                this.EventLog.WriteEntry(e.Message + ProcessOutput, EventLogEntryType.Error);
+                Log(EventLogEntryType.Error, e.Message + "See log files for more details! Logs (" + OutLogFile + ", " + ErrorLogFile + ")");
                 throw (e);
             }
 
-        }
-
-        private string ProcessOutput {
-            get {
-                string output = "\r\nOutput:";
-                if (!string.IsNullOrEmpty(runningProcessOutput))
-                    output += "\r\n"+runningProcessOutput;
-                
-                output += "\r\nError:";
-                if (!string.IsNullOrEmpty(runningProcessError))
-                    output += "\r\n" + runningProcessError;
-
-                return output;
-            }
         }
 
         protected override void OnStop()
@@ -150,11 +160,11 @@ namespace DeamonService
             try
             {
                 string workingDirectory = WorkingDirectory;
-                String shutdownScript = getStringSetting("ShutdownScript");
+                String shutdownScript = GetStringSetting("ShutdownScript");
 
                 if (!string.IsNullOrEmpty(shutdownScript))
                 {
-                    String shutdownScriptArguments = getStringSetting("ShutdownScript.Arguments");
+                    String shutdownScriptArguments = GetStringSetting("ShutdownScript.Arguments");
                     try
                     {
                         if (!File.Exists(shutdownScript))
@@ -173,15 +183,18 @@ namespace DeamonService
                         process.StartInfo.RedirectStandardError = true;
                         process.StartInfo.FileName = shutdownScript;
                         process.StartInfo.Arguments = shutdownScriptArguments;
+
                         if (null != workingDirectory)
                         {
                             process.StartInfo.WorkingDirectory = workingDirectory;
-                            this.EventLog.WriteEntry("Executing " + shutdownScript + " in working directory " + workingDirectory, EventLogEntryType.Information);
+                            Log(EventLogEntryType.Information, "Executing " + shutdownScript + " in working directory " + workingDirectory);
                         }
                         else
-                            this.EventLog.WriteEntry("Executing " + shutdownScript, EventLogEntryType.Information);
+                            Log(EventLogEntryType.Information, "Executing " + shutdownScript);
 
                         process.Start();
+
+                        PipeOutput(runningProcess);
 
                         process.WaitForExit();
 
@@ -196,10 +209,10 @@ namespace DeamonService
                         }
                     }
                     catch (Exception e) {
-                        this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);
+                        Log(EventLogEntryType.Error, e.Message);
                     }
                 }else
-                    this.EventLog.WriteEntry("No shutdown script defined! Killing process!", EventLogEntryType.Information);
+                    Log(EventLogEntryType.Information, "No shutdown script defined! Killing process!");
 
 
                 if (null != runningProcess && !runningProcess.HasExited) 
@@ -209,14 +222,18 @@ namespace DeamonService
             }
             catch (Exception e)
             {
-                this.EventLog.WriteEntry(e.Message, EventLogEntryType.Error);
+                Log(EventLogEntryType.Error, e.Message);
                 throw (e);
             }
             finally
             {
-                runningProcess = null;
-                runningProcessOutput = null;
-                runningProcessError = null;
+                CloseSafely(outPipe);
+                CloseSafely(errPipe);
+                
+                outPipe = null;
+                errPipe = null;
+                outStream = null;
+                errStream = null;
             }
         }
 
@@ -224,7 +241,7 @@ namespace DeamonService
         {
             get
             {
-                String afterExitDelayString = getStringSetting("ShutdownScript.AfterExitDelay");
+                String afterExitDelayString = GetStringSetting("ShutdownScript.AfterExitDelay");
                 int afterExitDelay;
                 if (!int.TryParse(afterExitDelayString, out afterExitDelay))
                     afterExitDelay = 3;
@@ -233,15 +250,94 @@ namespace DeamonService
             }
         }
 
-        private string getStringSetting(string name)
+        private string OutLogFile
+        {
+            get
+            {
+                return GetFile(GetStringSetting("Logging.OutLogFileName", LogsDirectory + "\\out.log"));
+            }
+        }
+
+        private string ErrorLogFile
+        {
+            get
+            {
+                return GetFile(GetStringSetting("Logging.OutLogFileName", LogsDirectory + "\\error.log"));
+            }
+        }
+
+        private string GetFile(string file)
+        {
+            string outFile = file;
+            if (!IsAbsolutePath(outFile))
+            {
+                outFile = WorkingDirectory + "\\" + outFile;
+            }
+
+            DirectoryInfo dir = new FileInfo(outFile).Directory;
+            if (!dir.Exists)
+            {
+                Directory.CreateDirectory(dir.FullName);
+            }
+
+            return outFile;
+        }
+
+        private string LogsDirectory
+        {
+            get
+            {
+                string logsDirectory = GetFile(GetStringSetting("Logging.LogsDirectory", "Logs"));
+                
+                if (!Directory.Exists(logsDirectory))
+                {
+                    Directory.CreateDirectory(logsDirectory);
+                }
+
+                return logsDirectory;
+            }
+        }
+
+        private bool IsAbsolutePath(string path)
+        {
+            if(null==path)
+                return false;
+
+            foreach (DriveInfo drive in DriveInfo.GetDrives())
+            {
+                if(path.ToLower().StartsWith(drive.RootDirectory.Name.ToLower()))
+                    return true;
+            }
+            
+            return false;
+        }
+
+        private string GetStringSetting(string name)
+        {
+            return GetStringSetting(name, null);
+        }
+
+        private string GetStringSetting(string name, string defaultValue)
         {
             try
             {
-                return ConfigurationSettings.AppSettings[name];
+                string value = ConfigurationSettings.AppSettings[name];
+                return value ?? defaultValue;
             }
-            catch (Exception) {
-                return null;
+            catch (Exception)
+            {
+                return defaultValue;
             }
+        }
+
+
+        private void CloseSafely(StreamPipe pipe)
+        {
+            try
+            {
+                pipe.Close();
+            }
+            catch { }
         }
     }
 }
