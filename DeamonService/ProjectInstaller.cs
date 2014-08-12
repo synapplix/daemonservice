@@ -39,7 +39,7 @@ namespace Org.Infobip.DeamonService
             // 
             // DeamonServiceProcessInstaller
             // 
-            this.DeamonServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.LocalSystem;
+            this.DeamonServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.LocalService;
             this.DeamonServiceProcessInstaller.Password = null;
             this.DeamonServiceProcessInstaller.Username = null;
         }

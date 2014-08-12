@@ -1,0 +1,2 @@
+DeamonService.exe -u
+pause
