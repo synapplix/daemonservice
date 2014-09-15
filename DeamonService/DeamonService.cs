@@ -55,8 +55,14 @@ namespace DeamonService
 
         private void PerpareLogFiles()
         {
-            outStream = new StreamWriter(OutLogFile, true, Encoding.UTF8);
-            errStream = new StreamWriter(ErrorLogFile, true, Encoding.UTF8);
+            if (null != OutLogFile)
+                outStream = new StreamWriter(OutLogFile, true, Encoding.UTF8);
+            else
+                outStream = StreamWriter.Null;
+            if (null != ErrorLogFile)
+                errStream = new StreamWriter(ErrorLogFile, true, Encoding.UTF8);
+            else
+                errStream = StreamWriter.Null;
         }
 
         private string StartupScript
@@ -254,7 +260,9 @@ namespace DeamonService
         {
             get
             {
-                return GetFile(GetStringSetting("Logging.OutLogFileName", LogsDirectory + "\\out.log"));
+                if (null!=LogsDirectory)
+                    return GetFile(GetStringSetting("Logging.OutLogFileName", LogsDirectory + "\\out.log"));
+                return null;
             }
         }
 
@@ -262,7 +270,9 @@ namespace DeamonService
         {
             get
             {
-                return GetFile(GetStringSetting("Logging.OutLogFileName", LogsDirectory + "\\error.log"));
+                if (null != LogsDirectory)
+                    return GetFile(GetStringSetting("Logging.ErrorLogFileName", LogsDirectory + "\\error.log"));
+                return null;
             }
         }
 
@@ -287,9 +297,9 @@ namespace DeamonService
         {
             get
             {
-                string logsDirectory = GetFile(GetStringSetting("Logging.LogsDirectory", "Logs"));
+                string logsDirectory = GetFile(GetStringSetting("Logging.LogsDirectory"));
                 
-                if (!Directory.Exists(logsDirectory))
+                if (null!=logsDirectory && !Directory.Exists(logsDirectory))
                 {
                     Directory.CreateDirectory(logsDirectory);
                 }
