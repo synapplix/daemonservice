@@ -297,7 +297,10 @@ namespace DeamonService
         {
             get
             {
-                string logsDirectory = GetFile(GetStringSetting("Logging.LogsDirectory"));
+                string logsDirectory = null;
+                string s = GetStringSetting("Logging.LogsDirectory");
+                if (null!=s)
+                    logsDirectory = GetFile(s);
                 
                 if (null!=logsDirectory && !Directory.Exists(logsDirectory))
                 {
